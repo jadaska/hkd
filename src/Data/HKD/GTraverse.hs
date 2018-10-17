@@ -8,6 +8,9 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 module Data.HKD.GTraverse where
 
 import           Data.Functor.Identity
@@ -189,6 +192,23 @@ instance
 
 class Commute f g where
   commute :: g (f a) -> f (g a)
+
+
+newtype Ident' a = Ident' {unIdent' :: Identity a} deriving (Generic, Functor, Show)
+
+instance Applicative (Ident') where
+  pure x = Ident' (return x)
+  (<*>) (Ident' f) (Ident' x) = Ident' $ f <*> x
+
+instance Monad (Ident') where
+  return x = Ident' (return x)
+  (>>=) (Ident' (Identity x)) fxn = fxn x
+
+instance Functor f => Commute f Ident' where
+  commute (Ident' (Identity fx)) = (Ident' . Identity) <$> fx
+
+instance Functor g => Commute Ident' g where
+  commute gfx = (Ident' . Identity) $ (runIdentity . unIdent') <$> gfx 
 
 instance Functor f => Commute f Identity where
   commute (Identity fx) = Identity <$> fx
