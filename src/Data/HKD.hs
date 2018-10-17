@@ -10,7 +10,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Data.HKD where
+module Data.HKD
+  ( module Data.HKD
+  , gnhoist
+  , gnsequence
+  , gnfold
+  ) where
 
 import           Data.HKD.GHoist
 import           Data.HKD.GFold
@@ -26,42 +31,6 @@ import           Data.Text(Text)
 type family HKD f a where
   HKD Identity a = a
   HKD f a = f a
-
-
-data Person' f = Person
-  { name :: HKD f Text
-  , address :: Address' f
-  , pets :: HKD f [Pet' f]
-  } deriving (Generic)
-
-deriving instance Show (Person' Identity)
-deriving instance Show (Person' Maybe)
-
-data Pet' f = Pet
-  { species :: f Species
-  , petName :: f Text
-  } deriving (Generic)
-
-deriving instance Show (Pet' Identity)
-deriving instance Show (Pet' Maybe)
-
-data Species = Dog | Cat | Fish deriving (Generic, Eq, Show)
-
-data Address' f = Address
-  { street :: f Text
-  , zipcode :: f Text
-  , state :: f Text
-  } deriving Generic
-
-deriving instance Show (Address' Identity)
-deriving instance Show (Address' Maybe)
-
-
-person :: Person' Maybe
-person = Person (Just "Jason") (addr1) (Just [pet1, pet2])
-addr1 = Address (Just "11732 Perry Street") (Just "80031") (Just "CO")
-pet1 = Pet (Just Dog) (Just "Loki")
-pet2 = Pet (Just Fish) (Just "Nemo")
 
 class Empty x
 instance Empty x

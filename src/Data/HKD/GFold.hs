@@ -27,7 +27,10 @@ gnfold :: forall a f constr m .
       Generic a
     , GFold constr (Rep a) f m
   )
-  => Proxy f -> Proxy constr -> (forall b . constr b => f b -> m) -> a -> m
+  => Proxy f
+  -> Proxy constr
+  -> (forall b . constr b => f b -> m)
+  -> a -> m
 gnfold pxyf pxyc f = gfold pxyf pxyc f . from 
 
 
@@ -53,7 +56,7 @@ instance {-# OVERLAPPABLE #-} (Monoid m, GFold constr i f m) => GFold constr (M1
 
 -- | Internal node
 -- | a f -> m
-instance
+instance 
   ( Generic (a f)
   , GFold constr (Rep (a f)) f m
   ) => GFold constr (K1 c (a f)) f m where
@@ -61,10 +64,10 @@ instance
 
 -- | Nested leaf
 -- | f b -> m
-instance
-  (constr b)
-  => GFold (constr :: * -> Constraint) (K1 c (f b)) f m where
-  gfold _ _ fxn (K1 fb) = fxn fb
+-- instance {-# OVERLAPPABLE #-}
+--   (constr b)
+--   => GFold (constr :: * -> Constraint) (K1 c (f b)) f m where
+--   gfold _ _ fxn (K1 fb) = fxn fb
 
 -- | Nested Internal node
 -- | f a f -> m
@@ -82,7 +85,7 @@ instance
 
 -- | Nested container of Internal nodes
 -- | f (t (a f)) -> m
-instance
+instance {-# OVERLAPPING #-}
   ( Generic (a f)
   , Functor f
   , Functor t
@@ -99,7 +102,7 @@ instance
 
 -- | Container of nested leaves
 -- | t (f b) -> m
-instance
+instance {-# OVERLAPPING #-}
   ( Functor f
   , Functor t
   , Foldable t
