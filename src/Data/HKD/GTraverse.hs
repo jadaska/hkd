@@ -18,12 +18,12 @@ import           Control.Compose((:.)(..), unO)
 import           Data.Traversable(sequenceA)
 
 class GTraverse i o f where
-  gtraverse :: i p -> f (o p)
+  gsequence :: i p -> f (o p)
 
 
 
 -- | Generic traverse (sequenceA)
-gntraverse ::
+gnsequence ::
   (
     Generic (a (f :. g))
   , Generic (a g)
@@ -31,35 +31,35 @@ gntraverse ::
   , GTraverse (Rep (a (f :. g))) (Rep (a g)) f 
   )
   => a (f :. g) -> f (a g)
-gntraverse = fmap to . gtraverse . from
+gnsequence = fmap to . gsequence . from
 
 
 -- | Generics instances
 instance (Applicative f, GTraverse i o f, GTraverse i' o' f)
     => GTraverse (i :*: i') (o :*: o') f where
-  gtraverse (l :*: r) = (:*:)
-                    <$> gtraverse l
-                    <*> gtraverse r
-  {-# INLINE gtraverse #-}
+  gsequence (l :*: r) = (:*:)
+                    <$> gsequence l
+                    <*> gsequence r
+  {-# INLINE gsequence #-}
 
 instance (Functor f, GTraverse i o f, GTraverse i' o' f) 
     => GTraverse (i :+: i') (o :+: o') f where
-  gtraverse (L1 l) = L1 <$> gtraverse l
-  gtraverse (R1 r) = R1 <$> gtraverse r
-  {-# INLINE gtraverse #-}
+  gsequence (L1 l) = L1 <$> gsequence l
+  gsequence (R1 r) = R1 <$> gsequence r
+  {-# INLINE gsequence #-}
 
 instance (Functor f, GTraverse i o f)
     => GTraverse (M1 _a _b i) (M1 _a' _b' o) f where
-  gtraverse (M1 x) = M1 <$> gtraverse x
-  {-# INLINE gtraverse #-}
+  gsequence (M1 x) = M1 <$> gsequence x
+  {-# INLINE gsequence #-}
 
 instance GTraverse V1 V1 f where
-  gtraverse = undefined
-  {-# INLINE gtraverse #-}
+  gsequence = undefined
+  {-# INLINE gsequence #-}
 
 instance Applicative f => GTraverse U1 U1 f where
-  gtraverse U1 = pure U1
-  {-# INLINE gtraverse #-}
+  gsequence U1 = pure U1
+  {-# INLINE gsequence #-}
 
 
 
@@ -76,16 +76,16 @@ instance
                  (K1 c (a g))
                  f where
   
-  gtraverse (K1 afg) = K1 <$> f_ag
+  gsequence (K1 afg) = K1 <$> f_ag
     where
-      f_ag = gntraverse afg
+      f_ag = gnsequence afg
 
 -- | Nested leaf
 -- | (f :. g) b -> f (g b)
 instance Functor f
   => GTraverse (K1 c ((f :. g) b)) (K1 c (g b)) f where
-  gtraverse (K1 (O fgb)) = K1 <$> fgb
-  {-# INLINE gtraverse #-}
+  gsequence (K1 (O fgb)) = K1 <$> fgb
+  {-# INLINE gsequence #-}
 
 -- | Nested internal node
 -- | (f :. g) (a (f :. g)) -> f (g (a g))
@@ -100,9 +100,9 @@ instance
                  (K1 c (g (a g)))
                  f where
   
-  gtraverse (K1 (O fg_afg)) = K1 <$> fg_ag
+  gsequence (K1 (O fg_afg)) = K1 <$> fg_ag
     where
-      fgf_ag = fmap (fmap gntraverse) fg_afg
+      fgf_ag = fmap (fmap gnsequence) fg_afg
       ffg_ag = fmap commute fgf_ag
       fg_ag = join ffg_ag
 
@@ -120,9 +120,9 @@ instance
                  (K1 c (g (t (a g))))
                  f where
   
-  gtraverse (K1 (O fgt_afg)) = K1 <$> fgt_ag
+  gsequence (K1 (O fgt_afg)) = K1 <$> fgt_ag
     where
-      fgtf_ag = fmap (fmap (fmap gntraverse)) fgt_afg
+      fgtf_ag = fmap (fmap (fmap gnsequence)) fgt_afg
       fgft_ag = fmap (fmap sequenceA) fgtf_ag
       ffgt_ag = fmap commute fgft_ag
       fgt_ag = join ffgt_ag
@@ -139,7 +139,7 @@ instance
                  (K1 c (t(g b)))
                  f where
   
-  gtraverse (K1 (t_fg_b)) = K1 <$> ftg_b
+  gsequence (K1 (t_fg_b)) = K1 <$> ftg_b
     where
       tfg_b = fmap unO t_fg_b
       ftg_b = sequenceA tfg_b
@@ -158,9 +158,9 @@ instance
                  (K1 c (t((a g))))
                  f where
   
-  gtraverse (K1 (t_afg)) = K1 <$> ft_ag
+  gsequence (K1 (t_afg)) = K1 <$> ft_ag
     where
-      tf_ag   = fmap gntraverse t_afg
+      tf_ag   = fmap gnsequence t_afg
       ft_ag   = sequenceA tf_ag
 
 
@@ -178,10 +178,10 @@ instance
                  (K1 c (t (g (a g))))
                  f where
   
-  gtraverse (K1 (t_fg_afg)) = K1 <$> ftg_ag
+  gsequence (K1 (t_fg_afg)) = K1 <$> ftg_ag
     where
       tfg_afg = fmap unO t_fg_afg
-      tfgf_ag = fmap (fmap (fmap gntraverse)) tfg_afg
+      tfgf_ag = fmap (fmap (fmap gnsequence)) tfg_afg
       tffg_ag = fmap (fmap commute) tfgf_ag
       tfg_ag  = fmap join tffg_ag
       ftg_ag  = sequenceA tfg_ag
