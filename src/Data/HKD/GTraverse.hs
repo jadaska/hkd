@@ -22,7 +22,7 @@ class GTraverse i o f where
 
 
 
--- | Generic traverse
+-- | Generic traverse (sequenceA)
 gntraverse ::
   (
     Generic (a (f :. g))
@@ -164,7 +164,7 @@ instance
       ft_ag   = sequenceA tf_ag
 
 
--- | Container of nested internal leaves
+-- | Container of nested internal nodes
 -- | t ( (f :. g) (a (f :. g))) -> f (t (g (a g)))
 instance
   ( Monad f
@@ -186,7 +186,6 @@ instance
       tfg_ag  = fmap join tffg_ag
       ftg_ag  = sequenceA tfg_ag
       
-
 
 class Commute f g where
   commute :: g (f a) -> f (g a)
