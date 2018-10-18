@@ -24,14 +24,13 @@ import           Data.Foldable
 
 gnfold :: forall a f constr m .  
   (
-      Generic a
-    , GFold constr (Rep a) f m
+      Generic (a f)
+    , GFold constr (Rep (a f)) f m
   )
-  => Proxy f
-  -> Proxy constr
+  => Proxy constr
   -> (forall b . constr b => f b -> m)
-  -> a -> m
-gnfold pxyf pxyc f = gfold pxyf pxyc f . from 
+  -> a f -> m
+gnfold pxyc f = gfold (Proxy :: Proxy f) pxyc f . from 
 
 
 -- | Generic Fold
@@ -60,28 +59,29 @@ instance
   ( Generic (a f)
   , GFold constr (Rep (a f)) f m
   ) => GFold constr (K1 c (a f)) f m where
-  gfold pxyf pxyc fxn (K1 af) = gnfold pxyf pxyc fxn af
+  gfold pxyf pxyc fxn (K1 af) = gnfold pxyc fxn af
 
 -- | Nested leaf
 -- | f b -> m
--- instance {-# OVERLAPPABLE #-}
---   (constr b)
---   => GFold (constr :: * -> Constraint) (K1 c (f b)) f m where
---   gfold _ _ fxn (K1 fb) = fxn fb
+instance {-# OVERLAPPABLE #-}
+  (constr b)
+  => GFold (constr :: * -> Constraint) (K1 c (f b)) f m where
+  gfold _ _ fxn (K1 fb) = fxn fb
 
 -- | Nested Internal node
 -- | f a f -> m
 instance
   ( Generic (a f)
   , Functor f
+  , Foldable f
   , GFold constr (Rep (a f)) f m
   , constr (a f)
-  , constr m
+  , Monoid m
   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
-  gfold pxyf pxyc fxn (K1 faf) = fxn fm
+  gfold pxyf pxyc fxn (K1 faf) = fold fm
     where
       fm :: f m
-      fm = gnfold pxyf pxyc fxn <$> faf
+      fm = gnfold pxyc fxn <$> faf
 
 -- | Nested container of Internal nodes
 -- | f (t (a f)) -> m
@@ -91,17 +91,17 @@ instance {-# OVERLAPPING #-}
   , Functor t
   , Foldable t
   , GFold constr (Rep (a f)) f m
-  , constr m
+  , Foldable f
   , Monoid m  
   ) => GFold (constr :: * -> Constraint) (K1 c (f (t (a f)))) f m where
-  gfold pxyf pxyc fxn (K1 ftaf) = fxn fm
+  gfold pxyf pxyc fxn (K1 ftaf) = fold fm
     where
-      ftm = fmap (fmap (gnfold pxyf pxyc fxn :: _ -> m)) ftaf
+      ftm = fmap (fmap (gnfold pxyc fxn :: _ -> m)) ftaf
       fm  = fold <$> ftm
       
 
--- | Container of nested leaves
--- | t (f b) -> m
+-- -- | Container of nested leaves
+-- -- | t (f b) -> m
 instance {-# OVERLAPPING #-}
   ( Functor f
   , Functor t
@@ -123,7 +123,7 @@ instance
   ) => GFold (constr :: * -> Constraint) (K1 c (t (a f))) f m where
   gfold pxyf pxyc fxn (K1 taf) = fold tm
     where
-      tm = fmap (gnfold pxyf pxyc fxn) taf
+      tm = fmap (gnfold pxyc fxn) taf
 
 -- | Container of internal nodes
 -- | t (f (a f)) -> m
@@ -132,17 +132,17 @@ instance
   , Functor f
   , Functor t
   , Foldable t
-  , constr m
+  , Foldable f
   , GFold constr (Rep (a f)) f m
   , Monoid m
   ) => GFold (constr :: * -> Constraint) (K1 c (t (f (a f)))) f m where
   gfold pxyf pxyc (fxn :: forall b . constr b => f b -> m) (K1 tfaf) = fold tm
     where
       tfm :: t (f m)
-      tfm = fmap (fmap (gnfold pxyf pxyc fxn :: _ -> m)) tfaf
+      tfm = fmap (fmap (gnfold pxyc fxn :: _ -> m)) tfaf
 
       tm :: t m
-      tm = fmap fxn tfm
+      tm = fmap fold tfm
       
 
 

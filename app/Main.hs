@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-{-# LANGUAGE OverlappingInstances #-}
+-- {-# LANGUAGE OverlappingInstances #-}
 
 
 module Main where
@@ -56,10 +56,12 @@ pet1 = Pet (Just Dog) (Just "Loki")
 pet2 = Pet (Just Fish) (Just "Nemo")
 
 hasChar :: Char -> Person' Maybe -> [String]
-hasChar c p = gnfold (Proxy :: Proxy Maybe) (Proxy :: Proxy Show) fxn p
+hasChar c p = gnfold (Proxy :: Proxy Show) fxn p
   where
     fxn :: Show a => Maybe a -> [String]
     fxn (Just x) = if c `elem` (show x) then [show x] else []
     fxn Nothing = []
+
+
                      
 
