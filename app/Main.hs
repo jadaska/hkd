@@ -50,18 +50,17 @@ deriving instance Show (Address' Maybe)
 
 
 person :: Person' Maybe
-person = Person (Just "Jason") (addr1) (Just [pet1, pet2])
+person = Person (Just "Jason") addr1 (Just [pet1, pet2])
 addr1 = Address (Just "11732 Perry Street") (Just "80031") (Just "CO")
 pet1 = Pet (Just Dog) (Just "Loki")
 pet2 = Pet (Just Fish) (Just "Nemo")
 
 hasChar :: Char -> Person' Maybe -> [String]
-hasChar c p = gnfold (Proxy :: Proxy Show) fxn p
+hasChar c = gnfold (Proxy :: Proxy Show) fxn
   where
     fxn :: Show a => Maybe a -> [String]
-    fxn (Just x) = if c `elem` (show x) then [show x] else []
+    fxn (Just x) = if c `elem` show x then [show x] else []
     fxn Nothing = []
-
 
                      
 

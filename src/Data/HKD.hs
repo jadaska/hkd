@@ -15,6 +15,8 @@ module Data.HKD
   , gnhoist
   , gnsequence
   , gnfold
+  , gndefault
+  
   ) where
 
 import           Data.HKD.GHoist
@@ -35,6 +37,11 @@ type family HKD f a where
 class Empty x
 instance Empty x
 
+skeleton ::
+  ( Generic (a Maybe)
+  , GDefault Empty (Rep (a Maybe)) Maybe
+  ) => a Maybe
+skeleton = gndefault (Proxy :: Proxy Empty) Nothing
 
 
 validate ::

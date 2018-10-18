@@ -146,115 +146,110 @@ instance
       
 
 
-
--- instance {-# OVERLAPPABLE #-} 
---   (
---       GFold (Rep (g (ff :: * -> *))) m 
---     , Generic (g ff)
---   ) => GFold (K1 a (g ff)) m where
---     gfold (K1 k) = gnfold k
---     {-# INLINE gfold #-}
-
--- instance {-# OVERLAPPABLE #-} (   
-
---       Monoid m
---     , GFold (Rep (g (ff :: * -> *))) m 
---     , Generic (g ff)
---   ) => GFold (K1 _a [g ff]) m where
---     gfold (K1 x) = foldMap gnfold x
---     {-# INLINE gfold #-}
+-- | Generic Default
+gndefault :: forall a f constr . 
+  (
+      Generic (a f)
+    , GDefault constr (Rep (a f)) f
+  )
+  => Proxy constr
+  -> (forall b . constr b => f b)
+  -> a f
+gndefault pxy f = to $ gdefault (Proxy :: Proxy f) pxy f
 
 
+class GDefault (constr :: * -> Constraint) o f where
+  gdefault :: Proxy f -> Proxy constr -> (forall b . constr b => f b) ->  o p
 
--- instance {-# OVERLAPPABLE #-} (   
+instance {-# OVERLAPPABLE #-}
+  ( GDefault constr i f
+  , GDefault constr i' f
+  ) => GDefault constr (i :+: i') f where
+    gdefault pf pxy f = L1 $ gdefault pf pxy f
 
---       Monoid m
---     , GFold (Rep (g (ff :: * -> *))) m 
---     , Generic (g ff)
---   ) => GFold (M1 _a _b (K1 _a [g ff])) m where
---     gfold (M1 (K1 x)) = foldMap gnfold x
---     {-# INLINE gfold #-}    
+instance
+  ( GDefault constr i f
+  , GDefault constr i' f)
+  => GDefault constr (i :*: i') f where
+    gdefault pf pxy f =  gdefault pf pxy f :*: gdefault pf pxy f
 
--- instance {-# OVERLAPPABLE #-} 
---   (
---       GFold (Rep (g (ff :: * -> *))) m 
---     , Generic (g ff)
---   ) 
---   => GFold (K1 a (g ff)) m where
---     gfold (K1 k) = gnfold k
---     {-# INLINE gfold #-}
+instance
+  ( GDefault constr i f)
+  => GDefault constr (M1 _a _b i) f where
+  gdefault pf pxy f = M1 $ gdefault pf pxy f
 
+instance GDefault constr V1 f where
+  gdefault _ _ _  = undefined
 
-
-
--- instance (
---     GFold (Rep g) m 
---   , Generic g 
---   ) => GFold (K1 a g) m where
---   gfold (K1 k) = gnfold k
---   {-# INLINE gfold #-}
+-- | HKD Nesting
 
 
+-- | Internal node
+-- | a f
+instance
+  ( Generic (a f)
+  , GDefault constr (Rep (a f)) f
+  )
+  => GDefault constr (K1 c (a f)) f where
+    gdefault pf pxy f = K1 $ gndefault pxy f
+
+
+-- | Nested leaf
+-- | f b
+instance {-# OVERLAPPABLE #-}
+  (constr b) => GDefault constr (K1 c (f b)) f where
+    gdefault pf pxy = K1
+
+
+-- | Container of Internal nodes
+-- | t (a f)
+instance
+  ( Generic (a f)
+  , GDefault constr (Rep (a f)) f
+  , Applicative t
+  )
+  => GDefault constr (K1 c (t (a f))) f where
+    gdefault pf pxy f = K1 $ pure $ gndefault pxy f
+
+-- | Nested Internal node
+-- | t (a f)
+instance
+  ( Generic (a f)
+  , GDefault constr (Rep (a f)) f
+  , Applicative f
+  )
+  => GDefault constr (K1 c (f (a f))) f where
+    gdefault pf pxy f = K1 $ pure $ gndefault pxy f
 
 
 
+-- | Double Nested/Container Internal node
+-- | g (a f)
+instance {-# OVERLAPPING #-}
+  ( Generic (a f)
+  , GDefault constr (Rep (a f)) f
+  , Applicative f
+  , Applicative g
+  )
+  => GDefault constr (K1 c (g (f (a f)))) f where
+    gdefault pf pxy f = K1 $ pure $ pure $ gndefault pxy f
+
+-- | Double Nested/Container Internal node
+-- | g (a f)
+instance {-# OVERLAPPING #-}
+  ( Generic (a f)
+  , GDefault constr (Rep (a f)) f
+  , Applicative f
+  , Applicative g
+  )
+  => GDefault constr (K1 c (f (g (a f)))) f where
+    gdefault pf pxy f = K1 $ pure $ pure $ gndefault pxy f
 
 
 
--- -- | Generic Unfold
--- class GUnfold m o where
---     gunfold :: [m] -> Maybe (o p)
-
--- instance (GUnfold m i, GUnfold m i') => GUnfold m (i :+: i') where
---     gunfold m's = (L1 <$> gunfold m's) `mplus` (R1 <$> gunfold m's) 
-
--- instance (GUnfold m , GUnfold m i') => GUnfold m (i :*: i') where
---     gunfold (m:rest) =  do 
---         l <- gunfold [m]
---         r <- gunfold rest
---         return $ l :*: r 
---     gunfold [] = mzero
-
--- instance (GUnfold m i) => GUnfold m (M1 _a _b i) where
---   gunfold m's = M1 <$> gunfold m's
-
-
--- instance  GUnfold m V1 where
---     gunfold  = undefined
-
--- gnunfold :: 
---   (
---       Generic a
---     , GUnfold m (Rep a)
---   )
---   => [m] -> Maybe a
--- gnunfold = fmap to . gunfold
-
--- -- | Generic Default
--- class GDefault o where
---   gdefault :: o p
-
--- instance {-# OVERLAPPABLE #-} (GDefault i, GDefault i') => GDefault (i :+: i') where
---     gdefault = L1 gdefault
-
--- instance (GDefault i, GDefault i') => GDefault (i :*: i') where
---     gdefault =  gdefault :*: gdefault
-
--- instance (GDefault i) => GDefault (M1 _a _b i) where
---   gdefault = M1 gdefault
-
--- instance GDefault V1 where
---   gdefault  = undefined
-
+    
 -- -- -- Maybe instance for Default
 
--- gndefault :: 
---   (
---       Generic a
---     , GDefault (Rep a)
---   )
---   => a
--- gndefault = to gdefault
 
 -- -- instance GDefault (K1 b (Maybe a)) where
 -- --   gdefault = K1 Nothing
