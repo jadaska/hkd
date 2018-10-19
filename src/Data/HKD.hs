@@ -50,7 +50,7 @@ validate ::
   , Generic (a Ident')
 --  , Generic (a Identity)  
   , GHoist Empty (Rep (a Maybe)) (Rep (a (Maybe :. Ident'))) Maybe (Maybe :. Ident')
-  , GHoist Empty (Rep (a Ident')) (Rep (a Identity)) Ident' Identity
+--  , GHoist Empty (Rep (a Ident')) (Rep (a Identity)) Ident' Identity
   , GTraverse (Rep (a (Maybe :. Ident'))) (Rep (a Ident')) Maybe
   )
   => a Maybe -> Maybe (a Ident')
