@@ -37,6 +37,9 @@ type family HKD f a where
 class Empty x
 instance Empty x
 
+pxyEmpty :: Proxy Empty
+pxyEmpty = Proxy
+
 skeleton ::
   ( Generic (a Maybe)
   , GDefault Empty (Rep (a Maybe)) Maybe
@@ -48,14 +51,13 @@ validate ::
   ( Generic (a Maybe)
   , Generic (a (Maybe :. Ident'))
   , Generic (a Ident')
---  , Generic (a Identity)  
+  , Generic (a Identity)  
   , GHoist Empty (Rep (a Maybe)) (Rep (a (Maybe :. Ident'))) Maybe (Maybe :. Ident')
---  , GHoist Empty (Rep (a Ident')) (Rep (a Identity)) Ident' Identity
+  , GHoist Empty (Rep (a Ident')) (Rep (a Identity)) Ident' Identity
   , GTraverse (Rep (a (Maybe :. Ident'))) (Rep (a Ident')) Maybe
   )
-  => a Maybe -> Maybe (a Ident')
-validate  =   gnsequence
-            . gnhoist (Proxy :: Proxy Empty) fxn
+  => a Maybe -> Maybe (a Identity)
+validate = fmap (gnhoist pxyEmpty unIdent') . gnsequence . gnhoist pxyEmpty fxn
   where
     fxn :: Maybe b -> (Maybe :. Ident') b
     fxn = O . fmap (Ident' . Identity)

@@ -142,7 +142,91 @@ instance
       tfag = fmap (fmap (gnhoist pxy fxn)) tfaf
       tgag = fmap fxn tfag
       
+-----------------------------------------------
+-- | Nested HKD Case (Identity special case)
+-- | Internal node
+-- | a f -> a Identity
+-- instance
+--   ( Generic (a f)
+--   , Generic (a Identity)
+--   , GHoist constr (Rep (a f)) (Rep (a Identity)) f Identity
+--   ) => GHoist constr (K1 c (a Identity)) (K1 c (a Identity)) f Identity where
+--   ghoist pxy fxn (K1 af) = K1 $ gnhoist pxy fxn af
 
+-- | Nested leaf
+-- | f b -> b
+instance
+  (constr b)
+  => GHoist (constr :: * -> Constraint) (K1 c (f b)) (K1 c b) f Identity where
+  ghoist _ fxn (K1 fb) = K1 $ runIdentity $ fxn fb
+
+-- | Nested Internal node
+-- | f a f -> a Identity
+instance
+  ( Generic (a f)
+  , Generic (a Identity)
+  , Functor f
+  , GHoist constr (Rep (a f)) (Rep (a Identity)) f Identity
+  , constr (a Identity)
+  ) => GHoist (constr :: * -> Constraint) (K1 c (f (a f))) (K1 c (a Identity)) f Identity where
+  ghoist pxy fxn (K1 faf) = K1 gag
+    where
+      fag = gnhoist pxy fxn <$> faf
+      gag = runIdentity $ fxn fag
+
+-- | Nested container of Internal nodes
+-- | f (t (a f)) -> t (a Identity)
+instance
+  ( Generic (a f)
+  , Generic (a Identity)
+  , Functor f
+  , Functor t
+  , GHoist constr (Rep (a f)) (Rep (a Identity)) f Identity
+  , constr (t (a Identity))
+  ) => GHoist (constr :: * -> Constraint) (K1 c (f (t (a f)))) (K1 c (t (a Identity))) f Identity where
+  ghoist pxy fxn (K1 ftaf) = K1 gtag
+    where
+      ftag = fmap (fmap (gnhoist pxy fxn)) ftaf
+      gtag = runIdentity $ fxn ftag
+
+-- | Container of nested leaves
+-- | t (f b) -> t b
+instance
+  ( Functor f
+  , Functor t
+  , constr b
+  ) => GHoist (constr :: * -> Constraint) (K1 c (t (f b))) (K1 c (t b)) f Identity where
+  ghoist pxy fxn (K1 tfb) = K1 tgb
+    where
+      tgb = fmap (runIdentity . fxn) tfb 
+
+
+-- | Container of internal nodes
+-- | t (a f) -> t (a g)
+-- instance
+--   ( Generic (a f)
+--   , Generic (a g)
+--   , Functor t
+--   , GHoist constr (Rep (a f)) (Rep (a g)) f g
+--   ) => GHoist (constr :: * -> Constraint) (K1 c (t (a f))) (K1 c (t (a g))) f g where
+--   ghoist pxy fxn (K1 taf) = K1 tag
+--     where
+--       tag = fmap (gnhoist pxy fxn) taf
+
+-- | Container of internal nodes
+-- | t (f (a f)) -> t (a Identity)
+instance
+  ( Generic (a f)
+  , Generic (a Identity)
+  , Functor f
+  , Functor t
+  , constr (a Identity)
+  , GHoist constr (Rep (a f)) (Rep (a Identity)) f Identity
+  ) => GHoist (constr :: * -> Constraint) (K1 c (t (f (a f)))) (K1 c (t (a Identity))) f Identity where
+  ghoist pxy fxn (K1 tfaf) = K1 tgag
+    where
+      tfag = fmap (fmap (gnhoist pxy fxn)) tfaf
+      tgag = fmap (runIdentity . fxn) tfag
 
 
 
