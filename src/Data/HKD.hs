@@ -14,9 +14,10 @@ module Data.HKD
   ( module Data.HKD
   , gnhoist
   , gnsequence
+  , gnsequencebr
   , gnfold
   , gndefault
-  
+  , Annotate(..)
   ) where
 
 import           Data.HKD.GHoist

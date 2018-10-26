@@ -70,12 +70,12 @@ instance {-# OVERLAPPABLE #-}
 
 -- | Nested Internal node
 -- | f a f -> m
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
   , Functor f
   , Foldable f
   , GFold constr (Rep (a f)) f m
-  , constr (a f)
+--  , constr (a f)
   , Monoid m
   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
   gfold pxyf pxyc fxn (K1 faf) = fold fm
@@ -114,7 +114,7 @@ instance {-# OVERLAPPING #-}
 
 -- | Container of internal nodes
 -- | t (a f) -> m
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
   , Functor t
   , Foldable t
