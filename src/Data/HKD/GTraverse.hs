@@ -279,7 +279,6 @@ unAnnotate :: Annotate a b -> (a, b)
 unAnnotate (Annotate a b) = (a, b)
 
 
-
 instance Applicative (Ident') where
   pure x = Ident' (return x)
   (<*>) (Ident' f) (Ident' x) = Ident' $ f <*> x

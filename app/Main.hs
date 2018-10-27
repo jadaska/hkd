@@ -33,7 +33,8 @@ data Person' f = Person
 
 deriving instance Show (Person' Identity)
 deriving instance Show (Person' Maybe)
-
+deriving instance Show a => Show (Person' (Maybe :. Annotate a))
+                                 
 data Pet' f = Pet
   { species :: f Species
   , petName :: f Text
@@ -42,6 +43,7 @@ data Pet' f = Pet
 
 deriving instance Show (Pet' Identity)
 deriving instance Show (Pet' Maybe)
+deriving instance Show a => Show (Pet' (Maybe :. Annotate a))
 
 data Species = Dog | Cat | Fish deriving (Generic, Eq, Show)
 
@@ -52,6 +54,7 @@ data Toy' f = Toy
 
 deriving instance Show (Toy' Maybe)
 deriving instance Show (Toy' Identity)  
+deriving instance Show a => Show (Toy' (Maybe :. Annotate a))
 
 data Address' f = Address
   { street :: f Text
@@ -61,11 +64,11 @@ data Address' f = Address
 
 deriving instance Show (Address' Identity)
 deriving instance Show (Address' Maybe)
-
+deriving instance Show a => Show (Address' (Maybe :. Annotate a))
 
 person :: Person' Maybe
 person = Person (Just "Jason") addr1 (Just [pet1, pet2])
-addr1 = Address (Just "11732 Perry Street") (Just "80031") (Just "CO")
+addr1 = Address (Just "11732 Perry Street") Nothing (Just "CO")
 pet1 = Pet (Just Dog) (Just "Loki") (Just (Toy (Just "bone") (Just True)))
 pet2 = Pet (Just Fish) (Just "Nemo") Nothing
 
@@ -113,7 +116,9 @@ hasCharLvl c p = gnfold (Proxy :: Proxy Show) lvlfxn p''
 
       
 
-    
+-- instance (Show a, Show b) => Show ((Maybe :. Annotate a) b) where
+--   show (O (Just (Annotate a b))) = show b <> "@" <> show b
+
 
                      
 

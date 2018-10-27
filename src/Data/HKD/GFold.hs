@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
---{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 --{-# LANGUAGE InstanceSigs #-}
@@ -102,7 +102,7 @@ instance {-# OVERLAPPING #-}
 
 -- -- | Container of nested leaves
 -- -- | t (f b) -> m
-instance {-# OVERLAPPING #-}
+instance {-# OVERLAPPABLE #-}
   ( Functor f
   , Functor t
   , Foldable t
@@ -114,7 +114,7 @@ instance {-# OVERLAPPING #-}
 
 -- | Container of internal nodes
 -- | t (a f) -> m
-instance {-# OVERLAPS #-}
+instance {-# OVERLAPPING #-}
   ( Generic (a f)
   , Functor t
   , Foldable t
@@ -127,8 +127,9 @@ instance {-# OVERLAPS #-}
 
 -- | Container of internal nodes
 -- | t (f (a f)) -> m
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
+  --, t ~ []
   , Functor f
   , Functor t
   , Foldable t

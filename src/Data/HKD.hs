@@ -9,6 +9,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Data.HKD
   ( module Data.HKD
@@ -25,6 +28,7 @@ import           Data.HKD.GFold
 import           Data.HKD.GTraverse
 import           Data.Functor.Identity
 import           Control.Compose((:.)(..), unO)
+import           Control.Monad.State
 import           GHC.Generics
 import           GHC.Exts(Constraint)
 import           Data.Typeable
@@ -37,6 +41,33 @@ type family HKD f a where
 
 class Empty x
 instance Empty x
+
+data HKDNode = HKDInternal | HKDLeaf
+
+type family HKDNodeType (a :: *) where
+  HKDNodeType (b (f :: * -> *)) = HKDInternal
+  HKDNodeType (t (b (f :: * -> *))) = HKDInternal
+  HKDNodeType (t (f (b (f :: * -> *)))) = HKDInternal
+  HKDNodeType b = HKDLeaf
+
+class NothingOut  a where
+  nothingOut :: Maybe a -> (Maybe :. Annotate Bool) a
+
+instance (HKDNodeType a ~ flag, NothingOut' flag a) => NothingOut a where
+  nothingOut = nothingOut' (Proxy :: Proxy flag)
+
+class NothingOut' (flag :: HKDNode) a  where
+  nothingOut' :: Proxy flag -> Maybe a -> (Maybe :. Annotate Bool) a
+
+instance NothingOut' 'HKDInternal a where
+  nothingOut' _ x = O $ fmap (Annotate False) x
+
+instance NothingOut' 'HKDLeaf a where
+  nothingOut' _ x = O $ fmap (Annotate True) x
+
+
+--instance NothingOut'   
+
 
 skeleton ::
   ( Generic (a Maybe)
@@ -62,7 +93,52 @@ validate  =   gnsequence
     fxn = O . fmap (Ident' . Identity)
 
 
+nestLabel :: forall a f f_an st_f_an st .
+  ( f_an ~ (f :. Annotate [Int])
+  , st_f_an ~ (State st :. (f :. Annotate [Int]))
+  , Generic (a f)
+  , Generic (a f_an)
+  , Generic (a st_f_an)
+  , GTraverse (Rep (a st_f_an)) (Rep (a f_an)) (State st)
+  , GHoist Empty (Rep (a f)) (Rep (a st_f_an)) f st_f_an
+  , Functor f
+--   , Foldable f
+  , st ~ (Int, [Int])
+  )
+  => a f -> a (f :. Annotate [Int])
+nestLabel x = y 
+  where
 
+    x' :: a (State st :. (f :. Annotate [Int]))
+    x' = gnhoist (Proxy :: Proxy Empty) pathAn x
+    
+    y :: a (f :. Annotate [Int])
+    y = fst $ (`runState` ((0, []) :: st)) m
+
+    m :: State st (a (f :. Annotate [Int]))
+    m = gnsequencebr brkt x'
+
+    brkt :: State st (State st b) -> State st b
+    brkt mmx = do
+      mx <- mmx
+      (n, path) <- get
+      put (0, n : path)
+      x <- mx
+      put (n, path)
+      
+      return x
+
+    pathAn :: f c -> (State st :. (f :. Annotate [Int])) c
+    pathAn fc = O $ do
+      ((n, path) :: st) <- get
+      put (n+1, path)
+      return $ O $ (Annotate ((n+1):path)) <$> fc
+      
+      
+    --pathAn Nothing = O $ return $ O $ (Nothing :: f (Annotate [Int] c))
+    -- pathAn (Just x) = O $ do
+    --   ((_, path) :: st) <- get
+    --   return (O $ Just (Annotate path x))
 
 -- gntraverse :: forall (constr :: * -> Constraint) f g a  . 
 --   ( Functor g
