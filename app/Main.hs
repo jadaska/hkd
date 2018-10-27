@@ -33,7 +33,7 @@ data Person' f = Person
 
 deriving instance Show (Person' Identity)
 deriving instance Show (Person' Maybe)
-deriving instance Show a => Show (Person' (Maybe :. Annotate a))
+deriving instance Show a => Show (Person' (Annotate a :. Maybe))
                                  
 data Pet' f = Pet
   { species :: f Species
@@ -43,7 +43,7 @@ data Pet' f = Pet
 
 deriving instance Show (Pet' Identity)
 deriving instance Show (Pet' Maybe)
-deriving instance Show a => Show (Pet' (Maybe :. Annotate a))
+deriving instance Show a => Show (Pet' (Annotate a :. Maybe))
 
 data Species = Dog | Cat | Fish deriving (Generic, Eq, Show)
 
@@ -54,7 +54,7 @@ data Toy' f = Toy
 
 deriving instance Show (Toy' Maybe)
 deriving instance Show (Toy' Identity)  
-deriving instance Show a => Show (Toy' (Maybe :. Annotate a))
+deriving instance Show a => Show (Toy' (Annotate a :. Maybe))
 
 data Address' f = Address
   { street :: f Text
@@ -64,7 +64,7 @@ data Address' f = Address
 
 deriving instance Show (Address' Identity)
 deriving instance Show (Address' Maybe)
-deriving instance Show a => Show (Address' (Maybe :. Annotate a))
+deriving instance Show a => Show (Address' (Annotate a :. Maybe))
 
 person :: Person' Maybe
 person = Person (Just "Jason") addr1 (Just [pet1, pet2])

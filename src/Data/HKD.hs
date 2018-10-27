@@ -66,6 +66,26 @@ instance NothingOut' 'HKDLeaf a where
   nothingOut' _ x = O $ fmap (Annotate True) x
 
 
+class IsHKDLeaf a where
+  isHKDLeaf :: a -> Bool
+
+instance (HKDNodeType a ~ flag, IsHKDLeaf' flag a) => IsHKDLeaf a where
+  isHKDLeaf x = isHKDLeaf' (Proxy :: Proxy flag) x
+
+class IsHKDLeaf' (flag :: HKDNode) a where
+  isHKDLeaf' :: Proxy flag -> a -> Bool
+
+
+
+instance IsHKDLeaf' 'HKDLeaf a where
+  isHKDLeaf' _ _ = True
+  {-# INLINE isHKDLeaf' #-}
+  
+instance IsHKDLeaf' 'HKDInternal a where
+  isHKDLeaf' _ _ = False
+  {-# INLINE isHKDLeaf' #-}
+
+
 --instance NothingOut'   
 
 
@@ -93,9 +113,11 @@ validate  =   gnsequence
     fxn = O . fmap (Ident' . Identity)
 
 
+
+
 nestLabel :: forall a f f_an st_f_an st .
-  ( f_an ~ (f :. Annotate [Int])
-  , st_f_an ~ (State st :. (f :. Annotate [Int]))
+  ( f_an ~ (Annotate [Int] :. f)
+  , st_f_an ~ (State st :. (Annotate [Int] :. f))
   , Generic (a f)
   , Generic (a f_an)
   , Generic (a st_f_an)
@@ -105,17 +127,17 @@ nestLabel :: forall a f f_an st_f_an st .
 --   , Foldable f
   , st ~ (Int, [Int])
   )
-  => a f -> a (f :. Annotate [Int])
+  => a f -> a (Annotate [Int] :. f)
 nestLabel x = y 
   where
 
-    x' :: a (State st :. (f :. Annotate [Int]))
+    x' :: a (State st :. (Annotate [Int] :. f))
     x' = gnhoist (Proxy :: Proxy Empty) pathAn x
     
-    y :: a (f :. Annotate [Int])
+    y :: a (Annotate [Int] :. f)
     y = fst $ (`runState` ((0, []) :: st)) m
 
-    m :: State st (a (f :. Annotate [Int]))
+    m :: State st (a (Annotate [Int] :. f))
     m = gnsequencebr brkt x'
 
     brkt :: State st (State st b) -> State st b
@@ -128,11 +150,11 @@ nestLabel x = y
       
       return x
 
-    pathAn :: f c -> (State st :. (f :. Annotate [Int])) c
+    pathAn :: f c -> (State st :. (Annotate [Int] :. f)) c
     pathAn fc = O $ do
       ((n, path) :: st) <- get
       put (n+1, path)
-      return $ O $ (Annotate ((n+1):path)) <$> fc
+      return $ O $ Annotate ((n+1):path) fc
       
       
     --pathAn Nothing = O $ return $ O $ (Nothing :: f (Annotate [Int] c))
