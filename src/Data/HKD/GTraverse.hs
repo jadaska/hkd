@@ -10,9 +10,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
-{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE DeriveGeneric #-}
-
+{-# LANGUAGE ConstraintKinds #-}
 
 module Data.HKD.GTraverse where
 
@@ -29,29 +28,24 @@ class GTraverse i o f where
   gsequencebr :: (forall a . f (f a) -> f a) -> i p -> f (o p)
 
 
-
--- | Generic traverse (sequenceA)
-gnsequence ::
-  (
-    Generic (a (f :. g))
+type GSequenceable a f g =
+  ( Generic (a (f :. g))
   , Generic (a g)
   , Functor f
   , GTraverse (Rep (a (f :. g))) (Rep (a g)) f 
   )
-  => a (f :. g) -> f (a g)
+  
+
+-- | Generic traverse (sequenceA)
+gnsequence :: GSequenceable a f g => a (f :. g) -> f (a g)
 gnsequence = fmap to . gsequence . from
 
 
-gnsequencebr ::
-  (
-    Generic (a (f :. g))
-  , Generic (a g)
-  , Functor f
-  , GTraverse (Rep (a (f :. g))) (Rep (a g)) f 
-  )
-  => (forall b . f (f b) -> f b) -> a (f :. g) -> f (a g)
+gnsequencebr :: GSequenceable a f g
+  => (forall b . f (f b) -> f b)
+  -> a (f :. g)
+  -> f (a g)
 gnsequencebr fxn = fmap to . gsequencebr fxn . from
-
 
 
 -- | Generics instances

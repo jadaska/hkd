@@ -22,11 +22,13 @@ import           Data.Typeable
 import           Data.Foldable
 
 
-gnfold :: forall a f constr m .  
-  (
-      Generic (a f)
-    , GFold constr (Rep (a f)) f m
+type GFoldable constr a f m =
+  ( Generic (a f)
+  , GFold constr (Rep (a f)) f m
   )
+
+gnfold :: forall a f constr m .  
+  GFoldable constr a f m
   => Proxy constr
   -> (forall b . constr b => f b -> m)
   -> a f -> m
@@ -145,14 +147,13 @@ instance {-# OVERLAPS #-}
       tm :: t m
       tm = fmap fold tfm
       
-
+type GDefaultable constr a f =
+  ( Generic (a f)
+  , GDefault constr (Rep (a f)) f
+  )
 
 -- | Generic Default
-gndefault :: forall a f constr . 
-  (
-      Generic (a f)
-    , GDefault constr (Rep (a f)) f
-  )
+gndefault :: forall a f constr . GDefaultable constr a f 
   => Proxy constr
   -> (forall b . constr b => f b)
   -> a f

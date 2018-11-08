@@ -22,12 +22,13 @@ import           Control.Compose((:.)(..))
 import           Data.Typeable
 
 
-gnhoist :: forall a f g constr . 
-  (
-      GHoist constr (Rep (a f)) (Rep (a g)) f g
+type GHoistable constr a f g =
+  (   GHoist constr (Rep (a f)) (Rep (a g)) f g
     , Generic (a f)
     , Generic (a g)
   )
+  
+gnhoist :: forall a f g constr . GHoistable constr a f g
   => Proxy constr
   -> (forall c . constr c => f c -> g c)
   -> a f

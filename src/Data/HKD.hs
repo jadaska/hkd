@@ -22,6 +22,10 @@ module Data.HKD
   , gnfold
   , gndefault
   , Annotate(..)
+  , GSequenceable
+  , GHoistable
+  , GFoldable
+  , GDefaultable
   ) where
 
 import           Data.HKD.GHoist
@@ -89,57 +93,43 @@ instance IsHKDLeaf' 'HKDInternal a where
   {-# INLINE isHKDLeaf' #-}
 
 
---instance NothingOut'   
 pxyEmpty :: Proxy Empty
 pxyEmpty = Proxy
 
 
-skeleton ::
+type GSkeletonable a =
   ( Generic (a Maybe)
   , GDefault Empty (Rep (a Maybe)) Maybe
-  ) => a Maybe
+  )
+
+skeleton :: GSkeletonable a  => a Maybe
 skeleton = gndefault (Proxy :: Proxy Empty) Nothing
 
 
-validate ::
-  ( Generic (a Maybe)
-  , Generic (a (Maybe :. Ident'))
-  , Generic (a Ident')
-  , Generic (a Identity)  
-  , GHoist Empty (Rep (a Maybe)) (Rep (a (Maybe :. Ident'))) Maybe (Maybe :. Ident')
-  , GHoist Empty (Rep (a Ident')) (Rep (a Identity)) Ident' Identity
-  , GTraverse (Rep (a (Maybe :. Ident'))) (Rep (a Ident')) Maybe
+type GValidateable a =
+  ( GHoistable Empty a Maybe (Maybe :. Ident')
+  , GHoistable Empty a Ident' Identity
+  , GSequenceable a Maybe Ident'
   )
-  => a Maybe -> Maybe (a Identity)
+    
+validate :: GValidateable a 
+  => a Maybe
+  -> Maybe (a Identity)
 validate = fmap (gnhoist pxyEmpty unIdent') . gnsequence . gnhoist pxyEmpty fxn
   where
     fxn :: Maybe b -> (Maybe :. Ident') b
     fxn = O . fmap (Ident' . Identity)
 
-
-
-
-type Labelable a f =
-  (
--- f_an ~ (Annotate [Int] :. f)
---   , st_an_f ~ (State st :. (Annotate [Int] :. f))
-    Generic (a f)
-  , Generic (a (Annotate [Int] :. f))
-  , Generic (a (State (Int, [Int]) :. (Annotate [Int] :. f)))
-  , GTraverse (Rep (a (State (Int, [Int]) :. (Annotate [Int] :. f))))
-              (Rep (a (Annotate [Int] :. f)))
-              (State (Int, [Int]))
-  , GHoist Empty (Rep (a f))
-                 (Rep (a (State (Int, [Int]) :. (Annotate [Int] :. f))))
-                 f
-                 (State (Int, [Int]) :. (Annotate [Int] :. f))
-  , Functor f
+type LblSt = State (Int, [Int])
+type PathAn = Annotate [Int]
+type GLabelable a f =
+  ( Functor f
+  , GHoistable Empty a f (LblSt :. (PathAn :. f))
+  , GSequenceable a LblSt (PathAn :. f)
   )
 
-nestLabel :: forall a f f_an st_f_an st .
-  ( Labelable a f 
-  , st ~ (Int, [Int])
-  )
+  
+nestLabel :: forall a f st . (st ~ (Int, [Int]), GLabelable a f)
   => a f -> a (Annotate [Int] :. f)
 nestLabel x = y 
   where
@@ -171,32 +161,24 @@ nestLabel x = y
 
 
 
-type OverAnnotate a f g c
-                  an_f an_g lbl_g lbl_an_f =
-  ( an_f ~ (Annotate (Maybe c) :. f)
-  , an_g ~ (Annotate (Maybe c) :. g)
-  , lbl_g ~ (Annotate [Int] :. g)
-  , lbl_an_f ~ (Annotate [Int] :. (Annotate (Maybe c) :. f))
 
-  , Labelable a an_f
-  , Labelable a g
-  , Generic (a an_g)
-  , Generic (a f)
-  , Generic (a (Writer [([Int], c)] :. f))
-  , GHoist Empty (Rep (a lbl_g)) (Rep (a an_g)) lbl_g an_g
-  , GHoist Empty (Rep (a an_f)) (Rep (a f)) an_f f
-  , GHoist Empty (Rep (a lbl_an_f))
-                 (Rep (a (Writer [([Int], c)] :. f)))
-                 lbl_an_f (Writer [([Int], c)] :. f)
-  , GTraverse (Rep (a (Writer [([Int], c)] :. f)))
-              (Rep (a f))
-              (Writer [([Int], c)])
---   , GFold Empty (Rep (a lbl_an_f)) lbl_an_f [([Int], c)]
+
+
+type An c = Annotate c 
+
+
+type OverAnnotate a f g c = 
+  ( GLabelable a (An (Maybe c) :. f)
+  , GLabelable a g
+  , GHoistable Empty a (An [Int] :. g) (An (Maybe c) :. g)
+  , GHoistable Empty a (An (Maybe c) :. f) f
+  , GHoistable Empty a (An [Int] :. (An (Maybe c) :. f)) (Writer [([Int], c)] :. f)
+  , GSequenceable a (Writer [([Int], c)]) f
   )
 
 overAnnotation :: forall p a f g c an_f an_g lbl_g lbl_an_f .
   ( Arrow p
-  , OverAnnotate a f g c an_f an_g lbl_g lbl_an_f
+  , OverAnnotate a f g c -- an_f an_g lbl_g lbl_an_f
   )
   => p (a f) (a g)
   -> p (a (Annotate (Maybe c) :. f)) (a (Annotate (Maybe c) :. g))
@@ -206,15 +188,13 @@ overAnnotation arrow = proc x -> do
   arr id -< addAn m y
   
   where
-    outfxn :: (Annotate [Int] :. (Annotate (Maybe c) :. f)) z -> (Writer [([Int], c)] :. f) z -- [([Int], c)]
+    outfxn :: (Annotate [Int] :. (Annotate (Maybe c) :. f)) z -> (Writer [([Int], c)] :. f) z 
     outfxn (O (Annotate ix's (O (Annotate my fx)))) = O $ do
       case my of
         Just y  -> tell [(ix's, y)]
         Nothing -> return ()
       return fx
       
---    fldfxn (O (Annotate ix's (O (Annotate (Just y) fx)))) = tell [(ix's, y)] >> return fx
-
     dropAn :: a (Annotate (Maybe c) :. f) -> a f
     dropAn = gnhoist pxyEmpty (snd . unAnnotate . unO)
 
@@ -224,26 +204,5 @@ overAnnotation arrow = proc x -> do
         fxn :: (Annotate [Int] :. g) z -> (Annotate (Maybe c) :. g) z
         fxn (O (Annotate ix's gz)) = O (Annotate (M.lookup ix's m) gz)
       
-
--- gntraverse :: forall (constr :: * -> Constraint) f g a  . 
---   ( Functor g
---   , Commute f g
---   , Generic (a g)
---   )
---   => Proxy (constr :: * -> Constraint)
---   -> (forall b . constr b => b -> f b)
---   -> a g
---   -> f (a g)
---  gntraverse pxyc fxn = gnsequence . gnhoist pxyc (fxn' (Proxy :: Proxy constr) fxn)
---   where
---     p :: Proxy constr
---     p = pxyc
---     fxn' :: Proxy (constr :: * -> Constraint)
---          -> (forall b . constr b => b -> f b)
---          -> (forall b . constr b => g b -> (f :. g) b)
---     fxn' _ fxn0 gb = O fgb
---       where
---         gfb = fmap fxn0 gb
---         fgb = commute gfb
 
 
