@@ -160,12 +160,7 @@ nestLabel x = y
       return $ O $ Annotate ((n+1):path) fc
 
 
-
-
-
-
 type An c = Annotate c 
-
 
 type OverAnnotate a f g c = 
   ( GLabelable a (An (Maybe c) :. f)
@@ -176,9 +171,9 @@ type OverAnnotate a f g c =
   , GSequenceable a (Writer [([Int], c)]) f
   )
 
-overAnnotation :: forall p a f g c an_f an_g lbl_g lbl_an_f .
+overAnnotation :: forall p a f g c .
   ( Arrow p
-  , OverAnnotate a f g c -- an_f an_g lbl_g lbl_an_f
+  , OverAnnotate a f g c 
   )
   => p (a f) (a g)
   -> p (a (Annotate (Maybe c) :. f)) (a (Annotate (Maybe c) :. g))
