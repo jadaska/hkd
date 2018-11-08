@@ -24,6 +24,7 @@ dependencies:
 - mtl
 - TypeCompose
 - text
+- containers
 
 library:
   source-dirs: src

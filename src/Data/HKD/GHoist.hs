@@ -57,7 +57,7 @@ instance {-# OVERLAPPABLE #-} (GHoist constr i o f g) => GHoist constr (M1 _a _b
 
 -- | Internal node
 -- | a g -> a g
-instance
+instance 
   ( Generic (a f)
   , Generic (a g)
   , GHoist constr (Rep (a f)) (Rep (a g)) f g
@@ -66,14 +66,14 @@ instance
 
 -- | Nested leaf
 -- | f b -> g b
-instance
+instance {-# OVERLAPPABLE #-}
   (constr b)
   => GHoist (constr :: * -> Constraint) (K1 c (f b)) (K1 c (g b)) f g where
   ghoist _ fxn (K1 fb) = K1 $ fxn fb
 
 -- | Nested Internal node
 -- | f a f -> g (a g)
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
   , Generic (a g)
   , Functor f
@@ -87,7 +87,7 @@ instance
 
 -- | Nested container of Internal nodes
 -- | f (t (a f)) -> g (t (a g))
-instance
+instance {-# OVERLAPPING #-}
   ( Generic (a f)
   , Generic (a g)
   , Functor f
@@ -103,7 +103,7 @@ instance
 
 -- | Container of nested leaves
 -- | t (f b) -> t (g b)
-instance
+instance {-# OVERLAPPABLE #-}
   ( Functor f
   , Functor g
   , Functor t
@@ -116,7 +116,7 @@ instance
 
 -- | Container of internal nodes
 -- | t (a f) -> t (a g)
-instance
+instance {-# OVERLAPPING #-}
   ( Generic (a f)
   , Generic (a g)
   , Functor t
@@ -126,7 +126,7 @@ instance
     where
       tag = fmap (gnhoist pxy fxn) taf
 
--- | Container of internal nodes
+-- -- | Container of internal nodes
 -- | t (f (a f)) -> t (g (a g))
 instance
   ( Generic (a f)

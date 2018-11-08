@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
---{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 --{-# LANGUAGE InstanceSigs #-}
@@ -70,12 +70,12 @@ instance {-# OVERLAPPABLE #-}
 
 -- | Nested Internal node
 -- | f a f -> m
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
   , Functor f
   , Foldable f
   , GFold constr (Rep (a f)) f m
-  , constr (a f)
+--  , constr (a f)
   , Monoid m
   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
   gfold pxyf pxyc fxn (K1 faf) = fold fm
@@ -102,7 +102,7 @@ instance {-# OVERLAPPING #-}
 
 -- -- | Container of nested leaves
 -- -- | t (f b) -> m
-instance {-# OVERLAPPING #-}
+instance {-# OVERLAPPABLE #-}
   ( Functor f
   , Functor t
   , Foldable t
@@ -114,7 +114,7 @@ instance {-# OVERLAPPING #-}
 
 -- | Container of internal nodes
 -- | t (a f) -> m
-instance
+instance {-# OVERLAPPING #-}
   ( Generic (a f)
   , Functor t
   , Foldable t
@@ -127,8 +127,9 @@ instance
 
 -- | Container of internal nodes
 -- | t (f (a f)) -> m
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
+  --, t ~ []
   , Functor f
   , Functor t
   , Foldable t
