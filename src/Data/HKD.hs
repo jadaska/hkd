@@ -128,6 +128,13 @@ type GLabelable a f =
   , GSequenceable a LblSt (PathAn :. f)
   )
 
+
+fieldLabel :: GHoistable Empty a f (Annotate (Maybe String) :. f)
+  => a f
+  -> a (Annotate (Maybe String) :. f)
+fieldLabel = gnhoist' pxyEmpty Nothing fxn
+  where
+    fxn ms fx = O $ Annotate ms fx
   
 nestLabel :: forall a f st . (st ~ (Int, [Int]), GLabelable a f)
   => a f -> a (Annotate [Int] :. f)
