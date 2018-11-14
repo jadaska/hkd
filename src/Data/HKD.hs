@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ConstraintKinds #-}
-
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -26,11 +26,13 @@ module Data.HKD
   , GHoistable
   , GFoldable
   , GDefaultable
+  , GZippable
   ) where
 
 import           Data.HKD.GHoist
 import           Data.HKD.GFold
 import           Data.HKD.GTraverse
+import           Data.HKD.GZip
 import           Data.Functor.Identity
 import           Control.Compose((:.)(..), unO)
 import           Control.Monad.State
@@ -208,3 +210,38 @@ overAnnotation arrow = proc x -> do
       
 
 
+data Diff a = Same a | Different (Maybe a) a deriving (Functor, Show)
+
+gdiff :: forall a .
+  ( GZippable Eq a Identity Diff
+  )
+  => a Identity
+  -> a Identity
+  -> a Diff
+gdiff x y = gnzip (Proxy :: Proxy Eq) fxn x (Just y)
+  where
+    fxn :: Eq b => Identity b -> Maybe (Identity b) -> Diff b
+    fxn (Identity x) my =
+      case my of
+        (Just (Identity y)) -> if x == y then Same x else Different (Just y) x
+        Nothing  -> Different Nothing x
+
+-- gdiff :: forall a .
+--   ( GZippable Eq a Maybe (Diff :. Maybe)
+--   )
+--   => a Maybe
+--   -> a Maybe
+--   -> a (Diff :. Maybe)
+-- gdiff x y = gnzip (Proxy :: Proxy Eq) fxn x (Just y)
+--   where
+--     fxn :: Eq b => Maybe b -> Maybe (Maybe b) -> (Diff :. Maybe) b
+--     fxn (Just x) mmy = O $ 
+--       case join mmy of
+--         (Just y) -> if x == y then Same (Just x) else Different (Just (Just y)) (Just x)
+--         Nothing  -> Different Nothing (Just x)
+--     fxn Nothing mmy = O $ 
+--       case join mmy of
+--         (Just y) -> Different mmy Nothing
+--         Nothing  -> Same Nothing
+
+  

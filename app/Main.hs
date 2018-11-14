@@ -48,8 +48,8 @@ deriving instance Show a => Show (Pet' (Annotate a :. Maybe))
 data Species = Dog | Cat | Fish deriving (Generic, Eq, Show)
 
 data Toy' f = Toy
-  { toyName :: f Text
-  , squeaks :: f Bool
+  { toyName :: HKD f Text
+  , squeaks :: HKD f Bool
   } deriving Generic
 
 deriving instance Show (Toy' Maybe)
