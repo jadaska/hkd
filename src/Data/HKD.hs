@@ -130,8 +130,13 @@ type GLabelable a f =
   , GSequenceable a LblSt (PathAn :. f)
   )
 
+type GFieldLabelable a f =
+  (
+    GHoistable Empty a f (Annotate (Maybe String) :. f)
+  )
 
-fieldLabel :: GHoistable Empty a f (Annotate (Maybe String) :. f)
+
+fieldLabel :: GFieldLabelable a f
   => a f
   -> a (Annotate (Maybe String) :. f)
 fieldLabel = gnhoist' pxyEmpty Nothing fxn
