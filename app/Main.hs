@@ -36,9 +36,9 @@ deriving instance Show (Person' Maybe)
 deriving instance Show a => Show (Person' (Annotate a :. Maybe))
                                  
 data Pet' f = Pet
-  { species :: f Species
-  , petName :: f Text
-  , toy     :: f (Toy' f)
+  { species :: HKD f Species
+  , petName :: HKD f Text
+  , toy     :: HKD f (Toy' f)
   } deriving (Generic)
 
 deriving instance Show (Pet' Identity)
@@ -57,9 +57,9 @@ deriving instance Show (Toy' Identity)
 deriving instance Show a => Show (Toy' (Annotate a :. Maybe))
 
 data Address' f = Address
-  { street :: f Text
-  , zipcode :: f Text
-  , state :: f Text
+  { street  :: HKD f Text
+  , zipcode :: HKD f Text
+  , state   :: HKD f Text
   } deriving Generic
 
 deriving instance Show (Address' Identity)

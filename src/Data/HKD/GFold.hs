@@ -215,7 +215,7 @@ instance
 
 -- | Nested Internal node
 -- | t (a f)
-instance
+instance {-# OVERLAPPING #-}
   ( Generic (a f)
   , GDefault constr (Rep (a f)) f
   , Applicative f
