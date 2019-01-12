@@ -22,6 +22,7 @@ import           Control.Monad.Writer
 import           Control.Compose((:.)(..), unO)
 import           Data.Traversable(sequenceA)
 import           Data.Functor.Const
+import           Data.HKD.Annotate
 
 class GTraverse i o f where
   gsequence :: i p -> f (o p)
@@ -267,10 +268,6 @@ class Commute f g where
 
 newtype Ident' a = Ident' {unIdent' :: Identity a} deriving (Generic, Functor, Show)
 
-data Annotate a b = Annotate a b deriving (Generic, Functor, Foldable, Show)
-
-unAnnotate :: Annotate a b -> (a, b)
-unAnnotate (Annotate a b) = (a, b)
 
 
 instance Applicative (Ident') where

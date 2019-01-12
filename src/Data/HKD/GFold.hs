@@ -20,7 +20,8 @@ import           Data.Monoid
 import           Control.Monad
 import           Data.Typeable
 import           Data.Foldable
-
+import           Data.HKD.Annotate
+import           Control.Compose ((:.)(..), unO)
 
 type GFoldable constr a f m =
   ( Generic (a f)
@@ -75,15 +76,30 @@ instance {-# OVERLAPPABLE #-}
 instance {-# OVERLAPS #-}
   ( Generic (a f)
   , Functor f
-  , Foldable f
+--  , Foldable f
   , GFold constr (Rep (a f)) f m
---  , constr (a f)
+  , constr (a f)
   , Monoid m
   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
-  gfold pxyf pxyc fxn (K1 faf) = fold fm
-    where
-      fm :: f m
-      fm = gnfold pxyc fxn <$> faf
+  gfold pxyf pxyc fxn (K1 faf) = fxn faf --fold fm
+    -- where
+    --   fm :: f m
+    --   fm = gnfold pxyc fxn <$> faf
+
+
+-- instance {-# OVERLAPS #-}
+--   ( Generic (a f)
+--   , Functor f
+--   , Foldable f
+--   , GFold constr (Rep (a f)) f m
+-- --  , constr (a f)
+--   , Monoid m
+--   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
+--   gfold pxyf pxyc fxn (K1 faf) = fold fm
+--     where
+--       fm :: f m
+--       fm = gnfold pxyc fxn <$> faf
+
 
 -- | Nested container of Internal nodes
 -- | f (t (a f)) -> m
@@ -205,7 +221,7 @@ instance {-# OVERLAPPABLE #-}
 
 -- | Container of Internal nodes
 -- | t (a f)
-instance
+instance {-# OVERLAPS #-}
   ( Generic (a f)
   , GDefault constr (Rep (a f)) f
   , Applicative t
@@ -213,15 +229,22 @@ instance
   => GDefault constr (K1 c (t (a f))) f where
     gdefault pf pxy f = K1 $ pure $ gndefault pxy f
 
+instance {-# OVERLAPPING #-}
+  ( Generic (a Maybe)
+  , GDefault constr (Rep (a Maybe)) Maybe
+  )
+  => GDefault constr (K1 c (Maybe (a Maybe))) Maybe where
+    gdefault pf pxy f = K1 $ pure $ gndefault pxy f
+
 -- | Nested Internal node
 -- | t (a f)
-instance {-# OVERLAPPING #-}
-  ( Generic (a f)
-  , GDefault constr (Rep (a f)) f
-  , Applicative f
-  )
-  => GDefault constr (K1 c (f (a f))) f where
-    gdefault pf pxy f = K1 $ pure $ gndefault pxy f
+-- instance {-# OVERLAPPABLE #-}
+--   ( Generic (a f)
+--   , GDefault constr (Rep (a f)) f
+--   , Applicative f
+--   )
+--   => GDefault constr (K1 c (f (a f))) f where
+--     gdefault pf pxy f = K1 $ pure $ gndefault pxy f
 
 
 
@@ -246,6 +269,117 @@ instance {-# OVERLAPPING #-}
   )
   => GDefault constr (K1 c (f (g (a f)))) f where
     gdefault pf pxy f = K1 $ pure $ pure $ gndefault pxy f
+
+
+
+
+-- | Generalize Catamorphism
+
+type GCatable constr a f m =
+  ( Generic (a f)
+  , Generic (a (Annotate m :. NullF))
+  , GCata constr (Rep (a f)) (Rep (a (Annotate m :. NullF))) f m
+  )
+
+-- | convert a value to an Annotation placeholder
+-- This supports the recursion for generalize catamorphism
+toAnPh :: a -> (Annotate a :. NullF) b
+toAnPh x = O $ (Annotate x Null)
+
+-- | retreive a value from the Annotation placeholder
+fromAnPh :: (Annotate a :. NullF) b -> a
+fromAnPh (O (Annotate x Null)) = x
+
+gncata :: forall a g f constr m .  
+  ( GCatable constr a f m
+  , g ~ (Annotate m :. NullF)
+  , Functor f
+  , constr (a g)
+  )
+  => Proxy constr
+  -> (forall b . constr b => f b -> m)
+  -> f (a f) -> m
+gncata pxyc f = h . fmap (gncata' pxyc f)
+  where
+    h :: f (a g) -> m
+    h = f
+
+gncata' :: forall a g f constr m .  
+  ( GCatable constr a f m
+  , g ~ (Annotate m :. NullF)
+  )
+  => Proxy constr
+  -> (forall b . constr b => f b -> m)
+  -> a f -> a g
+gncata' pxyc f =
+      to
+    . (gcata (Proxy :: Proxy f)
+             pxyc
+             (Proxy :: Proxy m)
+             f)  -- g :: _ (f _) -> _ ((Annotate m :. NullF) _))
+    . from
+  where
+    -- g :: forall b . constr b => f b -> (Annotate m :. NullF) b
+    -- g = toAnPh . f
+
+-- | Generic Fold
+class GCata (constr :: * -> Constraint) i o f m where
+  gcata :: Proxy f
+        -> Proxy constr
+        -> Proxy m
+        -> (forall b . constr b => f b -> m)
+        -> i (f p)
+        -> o ((Annotate m :. NullF) p)
+
+instance (GCata constr i o f m, GCata constr i' o' f m)
+ => GCata constr (i :+: i') (o :+: o') f m where
+  gcata p1 p2 p3 fxn (L1 l) = L1 $ gcata p1 p2 p3 fxn l
+  gcata p1 p2 p3 fxn (R1 r) = R1 $ gcata p1 p2 p3 fxn r
+
+instance (Monoid m, GCata constr i o f m, GCata constr i' o' f m)
+  => GCata constr (i :*: i') (o :*: o') f m where
+     gcata p1 p2 p3 fxn (l :*: r) = (gcata p1 p2 p3 fxn l) :*: (gcata p1 p2 p3 fxn r)
+
+instance GCata constr V1 V1 f m where
+  gcata _ _ _ _  = undefined 
+
+
+-- instance {-# OVERLAPPABLE #-} (Monoid m, GFold constr i f m) => GFold constr (M1 _a _b i) f m where
+--   gfold p1 p2 fxn (M1 x) = gfold p1 p2 fxn x
+
+-- -- | Nested HKD Case
+
+
+-- | Internal node
+-- | a f -> m
+instance 
+  ( Generic (a f)
+  , Generic (a g)
+  , g ~ (Annotate m :. NullF)
+  , GCata constr (Rep (a f)) (Rep (a g)) f m
+--  , constr (a f)
+  ) => GCata constr (K1 c (a f)) (K1 c (a g)) f m where
+  gcata pxyf pxyc pxym fxn (K1 af) = K1 $ gncata' pxyc fxn af
+
+-- | Nested leaf
+-- | f b -> m
+instance {-# OVERLAPPABLE #-}
+  (constr b, g ~ (Annotate m :. NullF))
+  => GCata (constr :: * -> Constraint) (K1 c (f b)) (K1 c (g b)) f m where
+  gcata _ _ _ fxn (K1 fb) = K1 $ toAnPh $ fxn fb
+
+-- -- | Nested Internal node
+-- -- | f a f -> m
+-- instance {-# OVERLAPS #-}
+--   ( Generic (a f)
+--   , Functor f
+-- --  , Foldable f
+--   , GFold constr (Rep (a f)) f m
+--   , constr (a f)
+--   , Monoid m
+--   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
+--   gfold pxyf pxyc fxn (K1 faf) = fxn faf --fold fm
+
 
 
 

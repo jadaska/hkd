@@ -87,7 +87,7 @@ instance {-# OVERLAPPABLE #-}
 
 -- | Nested Internal node
 -- | f a f -> g (a g)
-instance {-# OVERLAPS #-}
+instance {-# OVERLAPPABLE #-}
   ( Generic (a f)
   , Generic (a g)
   , Functor f

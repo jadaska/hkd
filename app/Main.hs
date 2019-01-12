@@ -89,47 +89,47 @@ labelPet = gnhoist pxyEmpty fxn . nestLabel
 
 
 
-hasChar :: Char -> Person' Maybe -> [String]
-hasChar c = gnfold (Proxy :: Proxy Show) fxn
-  where
-    fxn :: Show a => Maybe a -> [String]
-    fxn (Just x) = if c `elem` show x then [show x] else []
-    fxn Nothing = []
+-- hasChar :: Char -> Person' Maybe -> [String]
+-- hasChar c = gnfold (Proxy :: Proxy Show) fxn
+--   where
+--     fxn :: Show a => Maybe a -> [String]
+--     fxn (Just x) = if c `elem` show x then [show x] else []
+--     fxn Nothing = []
 
-hasCharLvl :: forall monad . 
-  (
-    monad ~ State Int
-  )
-  => Char -> Person' Maybe -> [(String, Int)] -- Person' (Maybe :. Annotate Int)
-hasCharLvl c p = gnfold (Proxy :: Proxy Show) lvlfxn p''
-  where
-    lvlfxn :: Show c => (Maybe :. Annotate Int) c -> [(String, Int)]
-    lvlfxn (O Nothing) = []
-    lvlfxn (O (Just (Annotate i x))) = if c `elem` show x then [(show x, i)] else []
+-- hasCharLvl :: forall monad . 
+--   (
+--     monad ~ State Int
+--   )
+--   => Char -> Person' Maybe -> [(String, Int)] -- Person' (Maybe :. Annotate Int)
+-- hasCharLvl c p = gnfold (Proxy :: Proxy Show) lvlfxn p''
+--   where
+--     lvlfxn :: Show c => (Maybe :. Annotate Int) c -> [(String, Int)]
+--     lvlfxn (O Nothing) = []
+--     lvlfxn (O (Just (Annotate i x))) = if c `elem` show x then [(show x, i)] else []
     
-    p' :: Person' (monad :. (Maybe :. Annotate Int))
-    p' = gnhoist (Proxy :: Proxy Empty) lvlAn p
+--     p' :: Person' (monad :. (Maybe :. Annotate Int))
+--     p' = gnhoist (Proxy :: Proxy Empty) lvlAn p
 
-    p'' :: Person' (Maybe :. Annotate Int)
-    p'' = fst $ (`runState` (0 :: Int)) m
+--     p'' :: Person' (Maybe :. Annotate Int)
+--     p'' = fst $ (`runState` (0 :: Int)) m
 
-    m :: monad (Person' (Maybe :. Annotate Int))
-    m = gnsequencebr brkt p'
+--     m :: monad (Person' (Maybe :. Annotate Int))
+--     m = gnsequencebr brkt p'
 
-    brkt :: monad (monad a) -> monad a
-    brkt mmx = do
-      mx <- mmx
-      lvl <- get
-      put (lvl + 1)
-      x <- mx
-      put lvl
-      return x
+--     brkt :: monad (monad a) -> monad a
+--     brkt mmx = do
+--       mx <- mmx
+--       lvl <- get
+--       put (lvl + 1)
+--       x <- mx
+--       put lvl
+--       return x
 
-    lvlAn :: Maybe c -> (monad :. (Maybe :. Annotate Int)) c
-    lvlAn Nothing = O $ return $ O $ (Nothing :: Maybe (Annotate Int c))
-    lvlAn (Just x) = O $ do
-      (lvl :: Int) <- get
-      return (O $ Just (Annotate lvl x))
+--     lvlAn :: Maybe c -> (monad :. (Maybe :. Annotate Int)) c
+--     lvlAn Nothing = O $ return $ O $ (Nothing :: Maybe (Annotate Int c))
+--     lvlAn (Just x) = O $ do
+--       (lvl :: Int) <- get
+--       return (O $ Just (Annotate lvl x))
 
       
 

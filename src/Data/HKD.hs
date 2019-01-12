@@ -21,14 +21,17 @@ module Data.HKD
   , gnsequencebr
   , gnfold
   , gndefault
-  , Annotate(..)
   , GSequenceable
   , GHoistable
   , GFoldable
   , GDefaultable
   , GZippable
+  , Annotate (..)
+  , unAnnotate
   ) where
 
+import           Data.Constraints.Utility
+import           Data.HKD.Annotate
 import           Data.HKD.GHoist
 import           Data.HKD.GFold
 import           Data.HKD.GTraverse
@@ -47,9 +50,6 @@ import           Control.Monad.Writer
 type family HKD f a where
   HKD Identity a = a
   HKD f a = f a
-
-class Empty x
-instance Empty x
 
 data HKDNode = HKDInternal | HKDLeaf
 
@@ -129,6 +129,12 @@ type GLabelable a f =
   , GHoistable Empty a f (LblSt :. (PathAn :. f))
   , GSequenceable a LblSt (PathAn :. f)
   )
+
+
+dropAn :: (GHoistable Empty a (Annotate b :. f) f)
+  => a (Annotate b :. f) -> a f
+dropAn = gnhoist pxyEmpty (snd . unAnnotate . unO)
+
 
 type GFieldLabelable a f =
   (
