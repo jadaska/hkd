@@ -59,8 +59,8 @@ instance (Applicative f, GTraverse i o f, GTraverse i' o' f)
   gsequencebr fxn (l :*: r) = (:*:)
                               <$> gsequencebr fxn l
                               <*> gsequencebr fxn r
-  {-# INLINE gsequence #-}
-  {-# INLINE gsequencebr #-}
+  -- {-# INLINE gsequence #-}
+  -- {-# INLINE gsequencebr #-}
 
 instance (Functor f, GTraverse i o f, GTraverse i' o' f) 
     => GTraverse (i :+: i') (o :+: o') f where
@@ -69,24 +69,24 @@ instance (Functor f, GTraverse i o f, GTraverse i' o' f)
 
   gsequencebr f (L1 l) = L1 <$> gsequencebr f l
   gsequencebr f (R1 r) = R1 <$> gsequencebr f r
-  {-# INLINE gsequence #-}
-  {-# INLINE gsequencebr #-}
+  -- {-# INLINE gsequence #-}
+  -- {-# INLINE gsequencebr #-}
 
 instance (Functor f, GTraverse i o f)
     => GTraverse (M1 _a _b i) (M1 _a' _b' o) f where
   gsequence (M1 x) = M1 <$> gsequence x
   gsequencebr f (M1 x) = M1 <$> gsequencebr f x
-  {-# INLINE gsequence #-}
+  -- {-# INLINE gsequence #-}
 
 instance GTraverse V1 V1 f where
   gsequence = undefined
   gsequencebr _ = undefined
-  {-# INLINE gsequence #-}
+  -- {-# INLINE gsequence #-}
 
 instance Applicative f => GTraverse U1 U1 f where
   gsequence U1 = pure U1
   gsequencebr _ U1 = pure U1
-  {-# INLINE gsequence #-}
+  -- {-# INLINE gsequence #-}
 
 
 
@@ -118,8 +118,8 @@ instance Functor f
   => GTraverse (K1 c ((f :. g) b)) (K1 c (g b)) f where
   gsequence (K1 (O fgb)) = K1 <$> fgb
   gsequencebr _ (K1 (O fgb)) = K1 <$> fgb  
-  {-# INLINE gsequence #-}
-  {-# INLINE gsequencebr #-}
+  -- {-# INLINE gsequence #-}
+  -- {-# INLINE gsequencebr #-}
 
 -- | Nested internal node
 -- | (f :. g) (a (f :. g)) -> f (g (a g))

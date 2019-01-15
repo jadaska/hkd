@@ -162,6 +162,167 @@ instance {-# OVERLAPS #-}
 
       tm :: t m
       tm = fmap fold tfm
+
+
+--------------
+-- Temporary GFold that grabs all the leaves
+
+type GFoldable2 constr a f m =
+  ( Generic (a f)
+  , GFold2 constr (Rep (a f)) f m
+  )
+
+gnfold2 :: forall a f constr m .  
+  GFoldable2 constr a f m
+  => Proxy constr
+  -> (forall b . constr b => f b -> m)
+  -> a f -> m
+gnfold2 pxyc f = gfold2 (Proxy :: Proxy f) pxyc f . from 
+
+
+-- | Generic Fold
+class GFold2 (constr :: * -> Constraint) i f m where
+  gfold2 :: Proxy f -> Proxy constr -> (forall b . constr b => f b -> m) -> i p -> m
+
+instance (Monoid m, GFold2 constr i f m, GFold2 constr i' f m) => GFold2 constr (i :+: i') f m where
+    gfold2 p1 p2  fxn (L1 l) = gfold2 p1 p2 fxn l
+    gfold2 p1 p2 fxn (R1 r) = gfold2 p1 p2 fxn r
+
+instance (Monoid m, GFold2 constr i f m, GFold2 constr i' f m) => GFold2 constr (i :*: i') f m where
+    gfold2 p1 p2 fxn (l :*: r) = mappend (gfold2 p1 p2 fxn l) (gfold2 p1 p2 fxn r)
+
+instance Monoid m => GFold2 constr V1 f m where
+    gfold2 _ _ _ = mempty
+
+instance {-# OVERLAPPABLE #-} (Monoid m, GFold2 constr i f m) => GFold2 constr (M1 _a _b i) f m where
+  gfold2 p1 p2 fxn (M1 x) = gfold2 p1 p2 fxn x
+
+-- | Nested HKD Case
+
+
+-- | Internal node
+-- | a f -> m
+instance 
+  ( Generic (a f)
+  , GFold2 constr (Rep (a f)) f m
+  ) => GFold2 constr (K1 c (a f)) f m where
+  gfold2 pxyf pxyc fxn (K1 af) = gnfold2 pxyc fxn af
+
+-- | Nested leaf
+-- | f b -> m
+instance {-# OVERLAPPABLE #-}
+  (constr b)
+  => GFold2 (constr :: * -> Constraint) (K1 c (f b)) f m where
+  gfold2 _ _ fxn (K1 fb) = fxn fb
+
+-- | Nested Internal node
+-- | f a f -> m
+instance {-# OVERLAPS #-}
+  ( Generic (a f)
+  , Functor f
+  , Foldable f
+  , GFold2 constr (Rep (a f)) f m
+--  , constr (a f)
+  , Monoid m
+  ) => GFold2 (constr :: * -> Constraint) (K1 c (f (a f))) f m where
+  gfold2 pxyf pxyc fxn (K1 faf) = fold fm
+    where
+       fm :: f m
+       fm = gnfold2 pxyc fxn <$> faf
+
+
+-- instance {-# OVERLAPS #-}
+--   ( Generic (a f)
+--   , Functor f
+--   , Foldable f
+--   , GFold constr (Rep (a f)) f m
+-- --  , constr (a f)
+--   , Monoid m
+--   ) => GFold (constr :: * -> Constraint) (K1 c (f (a f))) f m where
+--   gfold pxyf pxyc fxn (K1 faf) = fold fm
+--     where
+--       fm :: f m
+--       fm = gnfold pxyc fxn <$> faf
+
+
+-- | Nested container of Internal nodes
+-- | f (t (a f)) -> m
+instance {-# OVERLAPPING #-}
+  ( Generic (a f)
+  , Functor f
+  , Functor t
+  , Foldable t
+  , GFold2 constr (Rep (a f)) f m
+  , Foldable f
+  , Monoid m  
+  ) => GFold2 (constr :: * -> Constraint) (K1 c (f (t (a f)))) f m where
+  gfold2 pxyf pxyc fxn (K1 ftaf) = fold fm
+    where
+      ftm = fmap (fmap (gnfold2 pxyc fxn :: _ -> m)) ftaf
+      fm  = fold <$> ftm
+      
+
+-- -- | Container of nested leaves
+-- -- | t (f b) -> m
+instance {-# OVERLAPPABLE #-}
+  ( Functor f
+  , Functor t
+  , Foldable t
+  , constr b
+  , Monoid m
+  ) => GFold2 (constr :: * -> Constraint) (K1 c (t (f b))) f m where
+  gfold2 _ _ fxn (K1 tfb) = fold $ fmap fxn tfb
+
+
+-- | Container of internal nodes
+-- | t (a f) -> m
+instance {-# OVERLAPPING #-}
+  ( Generic (a f)
+  , Functor t
+  , Foldable t
+  , Monoid m
+  , GFold2 constr (Rep (a f)) f m
+  ) => GFold2 (constr :: * -> Constraint) (K1 c (t (a f))) f m where
+  gfold2 pxyf pxyc fxn (K1 taf) = fold tm
+    where
+      tm = fmap (gnfold2 pxyc fxn) taf
+
+-- | Container of internal nodes
+-- | t (f (a f)) -> m
+instance {-# OVERLAPS #-}
+  ( Generic (a f)
+  --, t ~ []
+  , Functor f
+  , Functor t
+  , Foldable t
+  , Foldable f
+  , GFold2 constr (Rep (a f)) f m
+  , Monoid m
+  ) => GFold2 (constr :: * -> Constraint) (K1 c (t (f (a f)))) f m where
+  gfold2 pxyf pxyc (fxn :: forall b . constr b => f b -> m) (K1 tfaf) = fold tm
+    where
+      tfm :: t (f m)
+      tfm = fmap (fmap (gnfold2 pxyc fxn :: _ -> m)) tfaf
+
+      tm :: t m
+      tm = fmap fold tfm
+
+---------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       
 type GDefaultable constr a f =
   ( Generic (a f)
