@@ -277,7 +277,8 @@ type GToListable constr a f m =
 
 -- | Generic ToList
 class GToList (constr :: * -> Constraint) i f m where
-  gtolist :: Proxy constr
+  gtolist :: Proxy f
+          -> Proxy constr
           -> (forall b . constr b => f b -> m)
           -> i (f p)
           -> [m]
@@ -288,21 +289,18 @@ gntolist :: forall a g f constr m .
   )
   => Proxy constr
   -> (forall b . constr b => f b -> m)
-  -> a f -> a g
-gntolist pxyc f =
-      to
-    . gtolist pxyc f
-    . from
+  -> a f -> [m]
+gntolist pxyc f = gtolist (Proxy :: Proxy f) pxyc f . from
 
 
 instance (GToList constr i f m, GToList constr i' f m)
  => GToList constr (i :+: i') f m where
-  gtolist p1 fxn (L1 l) = gtolist p1 fxn l
-  gtolist p1 fxn (R1 r) = gtolist p1 fxn r
+  gtolist p1 p2 fxn (L1 l) = gtolist p1 p2 fxn l
+  gtolist p1 p2 fxn (R1 r) = gtolist p1 p2 fxn r
 
 instance (Monoid m, GToList constr i f m, GToList constr i' f m)
   => GToList constr (i :*: i') f m where
-     gtolist p1 fxn (l :*: r) = (gtolist p1 fxn l) <> (gtolist p1 fxn r)
+     gtolist p1 p2 fxn (l :*: r) = (gtolist p1 p2 fxn l) <> (gtolist p1 p2 fxn r)
 
 instance GToList constr V1 f m where
   gtolist _ _ _ _  = undefined
@@ -314,10 +312,10 @@ instance
   ( Generic (a f)
   , GToList constr (Rep (a f)) f m
   ) => GToList constr (K1 c (a f)) f m where
-  gtolist pxyc fxn (K1 af) = gntolist pxyc fxn af
+  gtolist _ pxyc fxn (K1 af) = gntolist pxyc fxn af
 
 -- | Nested node - f b -> m
 instance
   (constr b, g ~ (Annotate m :. NullF))
   => GToList (constr :: * -> Constraint) (K1 c (f b)) f m where
-  gtolist _ fxn (K1 fb) = [fxn fb]
+  gtolist _ _ fxn (K1 fb) = [fxn fb]
