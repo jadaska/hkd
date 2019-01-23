@@ -28,10 +28,12 @@ module Data.HKD
   , GZippable
   , Annotate (..)
   , unAnnotate
+  , HKD
   ) where
 
 import           Data.Constraints.Utility
 import           Data.HKD.Annotate
+import           Data.HKD.Internal
 import           Data.HKD.GHoist
 import           Data.HKD.GFold
 import           Data.HKD.GTraverse
@@ -47,9 +49,6 @@ import           Data.Text(Text)
 import           Control.Arrow
 import           Control.Monad.Writer
 
-type family HKD f a where
-  HKD Identity a = a
-  HKD f a = f a
 
 data HKDNode = HKDInternal | HKDLeaf
 
@@ -89,7 +88,7 @@ class IsHKDLeaf' (flag :: HKDNode) a where
 instance IsHKDLeaf' 'HKDLeaf a where
   isHKDLeaf' _ _ = True
   {-# INLINE isHKDLeaf' #-}
-  
+
 instance IsHKDLeaf' 'HKDInternal a where
   isHKDLeaf' _ _ = False
   {-# INLINE isHKDLeaf' #-}
@@ -113,8 +112,8 @@ type GValidateable a =
   , GHoistable Empty a Ident' Identity
   , GSequenceable a Maybe Ident'
   )
-    
-validate :: GValidateable a 
+
+validate :: GValidateable a
   => a Maybe
   -> Maybe (a Identity)
 validate = fmap (gnhoist pxyEmpty unIdent') . gnsequence . gnhoist pxyEmpty fxn
@@ -148,15 +147,15 @@ fieldLabel :: GFieldLabelable a f
 fieldLabel = gnhoist' pxyEmpty Nothing fxn
   where
     fxn ms fx = O $ Annotate ms fx
-  
+
 nestLabel :: forall a f st . (st ~ (Int, [Int]), GLabelable a f)
   => a f -> a (Annotate [Int] :. f)
-nestLabel x = y 
+nestLabel x = y
   where
 
     x' :: a (State st :. (Annotate [Int] :. f))
     x' = gnhoist (Proxy :: Proxy Empty) pathAn x
-    
+
     y :: a (Annotate [Int] :. f)
     y = fst $ (`runState` ((0, []) :: st)) m
 
@@ -170,7 +169,7 @@ nestLabel x = y
       put (0, n : path)
       x <- mx
       put (n, path)
-      
+
       return x
 
     pathAn :: f c -> (State st :. (Annotate [Int] :. f)) c
@@ -180,9 +179,9 @@ nestLabel x = y
       return $ O $ Annotate ((n+1):path) fc
 
 
-type An c = Annotate c 
+type An c = Annotate c
 
-type OverAnnotate a f g c = 
+type OverAnnotate a f g c =
   ( GLabelable a (An (Maybe c) :. f)
   , GLabelable a g
   , GHoistable Empty a (An [Int] :. g) (An (Maybe c) :. g)
@@ -193,7 +192,7 @@ type OverAnnotate a f g c =
 
 overAnnotation :: forall p a f g c .
   ( Arrow p
-  , OverAnnotate a f g c 
+  , OverAnnotate a f g c
   )
   => p (a f) (a g)
   -> p (a (Annotate (Maybe c) :. f)) (a (Annotate (Maybe c) :. g))
@@ -201,15 +200,15 @@ overAnnotation arrow = proc x -> do
   m <- arr M.fromList -< snd $ runWriter $ gnsequence $ gnhoist pxyEmpty outfxn (nestLabel x)
   y <- arrow -< dropAn x
   arr id -< addAn m y
-  
+
   where
-    outfxn :: (Annotate [Int] :. (Annotate (Maybe c) :. f)) z -> (Writer [([Int], c)] :. f) z 
+    outfxn :: (Annotate [Int] :. (Annotate (Maybe c) :. f)) z -> (Writer [([Int], c)] :. f) z
     outfxn (O (Annotate ix's (O (Annotate my fx)))) = O $ do
       case my of
         Just y  -> tell [(ix's, y)]
         Nothing -> return ()
       return fx
-      
+
     dropAn :: a (Annotate (Maybe c) :. f) -> a f
     dropAn = gnhoist pxyEmpty (snd . unAnnotate . unO)
 
@@ -218,7 +217,7 @@ overAnnotation arrow = proc x -> do
       where
         fxn :: (Annotate [Int] :. g) z -> (Annotate (Maybe c) :. g) z
         fxn (O (Annotate ix's gz)) = O (Annotate (M.lookup ix's m) gz)
-      
+
 
 
 data Diff a = Same a | Different (Maybe a) a deriving (Functor, Show)
@@ -246,13 +245,11 @@ gdiff x y = gnzip (Proxy :: Proxy Eq) fxn x (Just y)
 -- gdiff x y = gnzip (Proxy :: Proxy Eq) fxn x (Just y)
 --   where
 --     fxn :: Eq b => Maybe b -> Maybe (Maybe b) -> (Diff :. Maybe) b
---     fxn (Just x) mmy = O $ 
+--     fxn (Just x) mmy = O $
 --       case join mmy of
 --         (Just y) -> if x == y then Same (Just x) else Different (Just (Just y)) (Just x)
 --         Nothing  -> Different Nothing (Just x)
---     fxn Nothing mmy = O $ 
+--     fxn Nothing mmy = O $
 --       case join mmy of
 --         (Just y) -> Different mmy Nothing
 --         Nothing  -> Same Nothing
-
-  

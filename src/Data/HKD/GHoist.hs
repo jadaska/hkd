@@ -9,9 +9,13 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE KindSignatures #-}
-
+{-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Data.HKD.GHoist where
 
+
+import           Data.HKD.Internal
 import           Data.Functor.Identity
 import           GHC.Generics
 
@@ -22,22 +26,25 @@ import           Control.Compose((:.)(..))
 import           Data.Typeable
 
 
-type GHoistable constr a f g =
-  (   GHoist constr (Rep (a f)) (Rep (a g)) f g
+class GHoistable constr a f g where
+  gnhoist' ::
+       Proxy constr
+    -> Maybe String
+    -> (forall c . constr c => Maybe String -> f c -> g c)
+    -> a f
+    -> a g
+
+  default gnhoist' ::
+    ( GHoist constr (Rep (a f)) (Rep (a g)) f g
     , Generic (a f)
     , Generic (a g)
-  )
-
-
--- | generic hoist which uses both the kind variable
--- f and a string of the field
-gnhoist' :: forall a f g constr . GHoistable constr a f g
-  => Proxy constr
-  -> Maybe String
-  -> (forall c . constr c => Maybe String -> f c -> g c)
-  -> a f
-  -> a g
-gnhoist' pxy ms f = to . (ghoist pxy ms f :: _ (f _) -> _ (g _)) . from
+    )
+    => Proxy constr
+    -> Maybe String
+    -> (forall c . constr c => Maybe String -> f c -> g c)
+    -> a f
+    -> a g
+  gnhoist' pxy ms f = to . (ghoist pxy ms f :: _ (f _) -> _ (g _)) . from
 
 -- | specialization of the generic hoist to ignore the
 -- name of the field
@@ -86,26 +93,22 @@ instance {-# OVERLAPPABLE #-}
 -- | Internal node
 -- | a g -> a g
 instance
-  ( Generic (a f)
-  , Generic (a g)
-  , GHoist constr (Rep (a f)) (Rep (a g)) f g
-  ) => GHoist constr (K1 c (a f)) (K1 c (a g)) f g where
+  GHoistable constr a f g
+   => GHoist constr (K1 c (a f)) (K1 c (a g)) f g where
   ghoist pxy ms fxn (K1 af) = K1 $ gnhoist' pxy ms fxn af
 
 -- | Nested leaf
 -- | f b -> g b
 instance {-# OVERLAPPABLE #-}
-  (constr b)
+  ( constr b )
   => GHoist (constr :: * -> Constraint) (K1 c (f b)) (K1 c (g b)) f g where
   ghoist _ ms fxn (K1 fb) = K1 $ fxn ms fb
 
 -- | Nested Internal node
 -- | f a f -> g (a g)
 instance {-# OVERLAPPABLE #-}
-  ( Generic (a f)
-  , Generic (a g)
+  ( GHoistable constr a f g
   , Functor f
-  , GHoist constr (Rep (a f)) (Rep (a g)) f g
   , constr (a g)
   ) => GHoist (constr :: * -> Constraint) (K1 c (f (a f))) (K1 c (g (a g))) f g where
   ghoist pxy ms fxn (K1 faf) = K1 gag
@@ -118,10 +121,8 @@ instance {-# OVERLAPPABLE #-}
 -- | Internal node
 -- | a f -> a Identity
 instance
-  ( Generic (a f)
-  , Generic (a Identity)
-  , GHoist constr (Rep (a f)) (Rep (a Identity)) f Identity
-  ) => GHoist constr (K1 c (a f)) (K1 c (a Identity)) f Identity where
+ GHoistable constr a f Identity
+   => GHoist constr (K1 c (a f)) (K1 c (a Identity)) f Identity where
   ghoist pxy ms fxn (K1 af) = K1 $ gnhoist' pxy ms fxn af
 
 -- | Nested leaf
@@ -134,10 +135,8 @@ instance
 -- | Nested Internal node
 -- | f a f -> a Identity
 instance
-  ( Generic (a f)
-  , Generic (a Identity)
-  , Functor f
-  , GHoist constr (Rep (a f)) (Rep (a Identity)) f Identity
+  ( Functor f
+  , GHoistable constr a f Identity
   , constr (a Identity)
   ) => GHoist (constr :: * -> Constraint) (K1 c (f (a f))) (K1 c (a Identity)) f Identity where
   ghoist pxy ms fxn (K1 faf) = K1 gag

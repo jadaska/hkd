@@ -21,7 +21,7 @@ packages:
 - location: https://github.com/jadaska/constraint-utilities/archive/master.zip
   extra-dep: true
 
-resolver: lts-11.4
+resolver: lts-12.26
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.

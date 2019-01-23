@@ -26,6 +26,7 @@ dependencies:
 - text
 - containers
 - constraint-utilities
+- one-liner
 
 library:
   source-dirs: src

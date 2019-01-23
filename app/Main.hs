@@ -7,19 +7,27 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- {-# LANGUAGE OverlappingInstances #-}
-
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Main where
 import           GHC.Generics
+import           GHC.Exts(Constraint)
+import           Generics.OneLiner
 import           Data.Functor.Identity
 import Data.HKD
+import Data.HKD.Internal
 import Data.Text
 import Data.Typeable
 import           Control.Monad.Writer
 import           Control.Monad.State
 import           Control.Compose ((:.)(..))
 import           Data.Functor.Const
+import           Generics.OneLiner
+import           Data.Constraints.Utility
 
 main :: IO ()
 main = putStrLn "hello HKD"
@@ -31,19 +39,25 @@ data Person' f = Person
   , pets :: HKD f [Pet' f]
   } deriving (Generic)
 
-deriving instance Show (Person' Identity)
-deriving instance Show (Person' Maybe)
-deriving instance Show a => Show (Person' (Annotate a :. Maybe))
-                                 
+deriving instance (Constraints (Person' f) Show)
+  => Show (Person' f)
+
 data Pet' f = Pet
   { species :: HKD f Species
   , petName :: HKD f Text
   , toy     :: HKD f (Toy' f)
   } deriving (Generic)
 
-deriving instance Show (Pet' Identity)
-deriving instance Show (Pet' Maybe)
-deriving instance Show a => Show (Pet' (Annotate a :. Maybe))
+instance ( HKDChildConstr f Pet' (HasHKD f)
+         , HKDChildConstr g Pet' (HasHKD g)
+         , Functor f
+         , GHoistable Empty Toy' f g
+         ) => GHoistable Empty Pet' f g  where
+
+-- instance GHoistable Empty Pet' Maybe (Annotate b) where
+
+deriving instance (Constraints (Pet' f) Show)
+  => Show (Pet' f)
 
 data Species = Dog | Cat | Fish deriving (Generic, Eq, Show)
 
@@ -52,9 +66,16 @@ data Toy' f = Toy
   , squeaks :: HKD f Bool
   } deriving Generic
 
-deriving instance Show (Toy' Maybe)
-deriving instance Show (Toy' Identity)  
-deriving instance Show a => Show (Toy' (Annotate a :. Maybe))
+
+class (HKD f a ~ f a) => HasHKD f a
+instance (HKD f a ~ f a) => HasHKD f a
+
+instance ( HKDChildConstr f Toy' (HasHKD f)
+         , HKDChildConstr g Toy' (HasHKD g)
+         ) => GHoistable Empty Toy' f g  where
+
+deriving instance (Constraints (Toy' f) Show)
+  => Show (Toy' f)
 
 data Address' f = Address
   { street  :: HKD f Text
@@ -62,9 +83,8 @@ data Address' f = Address
   , state   :: HKD f Text
   } deriving Generic
 
-deriving instance Show (Address' Identity)
-deriving instance Show (Address' Maybe)
-deriving instance Show a => Show (Address' (Annotate a :. Maybe))
+deriving instance (Constraints (Address' f) Show)
+  => Show (Address' f)
 
 person :: Person' Maybe
 person = Person (Just "Jason") addr1 (Just [pet1, pet2])
@@ -78,12 +98,12 @@ completePet (Pet x y t) = Pet x y t'
   where
     t' = Just $ Toy (Just "ball") (Just False)
 
-labelPet :: Pet' Maybe -> Pet' (Annotate (Maybe Int) :. Maybe)
-labelPet = gnhoist pxyEmpty fxn . nestLabel
-  where
-    fxn :: (Annotate [Int] :. Maybe) z -> (Annotate (Maybe Int) :. Maybe) z
-    fxn (O (Annotate ix's (Just x))) = O $ Annotate (Just (sum ix's)) (Just x)
-    fxn (O (Annotate ix's Nothing))  = O $ Annotate Nothing Nothing
+-- labelPet :: Pet' Maybe -> Pet' (Annotate (Maybe Int) :. Maybe)
+-- labelPet = gnhoist pxyEmpty fxn . nestLabel
+--   where
+--     fxn :: (Annotate [Int] :. Maybe) z -> (Annotate (Maybe Int) :. Maybe) z
+--     fxn (O (Annotate ix's (Just x))) = O $ Annotate (Just (sum ix's)) (Just x)
+--     fxn (O (Annotate ix's Nothing))  = O $ Annotate Nothing Nothing
 
 
 
@@ -96,7 +116,7 @@ labelPet = gnhoist pxyEmpty fxn . nestLabel
 --     fxn (Just x) = if c `elem` show x then [show x] else []
 --     fxn Nothing = []
 
--- hasCharLvl :: forall monad . 
+-- hasCharLvl :: forall monad .
 --   (
 --     monad ~ State Int
 --   )
@@ -106,7 +126,7 @@ labelPet = gnhoist pxyEmpty fxn . nestLabel
 --     lvlfxn :: Show c => (Maybe :. Annotate Int) c -> [(String, Int)]
 --     lvlfxn (O Nothing) = []
 --     lvlfxn (O (Just (Annotate i x))) = if c `elem` show x then [(show x, i)] else []
-    
+
 --     p' :: Person' (monad :. (Maybe :. Annotate Int))
 --     p' = gnhoist (Proxy :: Proxy Empty) lvlAn p
 
@@ -131,11 +151,7 @@ labelPet = gnhoist pxyEmpty fxn . nestLabel
 --       (lvl :: Int) <- get
 --       return (O $ Just (Annotate lvl x))
 
-      
+
 
 -- instance (Show a, Show b) => Show ((Maybe :. Annotate a) b) where
 --   show (O (Just (Annotate a b))) = show b <> "@" <> show b
-
-
-                     
-
